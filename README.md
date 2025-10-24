@@ -331,7 +331,3 @@ erDiagram
 **Validación — en una frase:**
 
 > Se verifican claves no nulas, duplicados y reglas de plausibilidad/fechas/coordenadas (bloqueantes), más avisos informativos (regex contacto, % DESCONOCIDO) sin detener el DAG.
-
-
-
-viejo solo cambia lo que tienes que cambiar lo demas dejalo igual
