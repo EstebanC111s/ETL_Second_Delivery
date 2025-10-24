@@ -1,3 +1,7 @@
+Here tienes el **README completo** con los **diagramas corregidos en Mermaid** y el resto tal como lo pediste (solo agregué lo nuevo). Copia/pega tal cual en `README.md`.
+
+---
+
 # 🚰 ETL PROYECTO 2 — Agua, Alcantarillado y Aseo (Colombia)
 
 **Entrega 2 · Orquestación con Apache Airflow · Modelo Dimensional (Snowflake) · Validación de Datos**
@@ -30,36 +34,78 @@ Construir un pipeline **ETL** reproducible y orquestado que:
 ---
 
 ## 🧭 Arquitectura de Alto Nivel
+
+> Diagrama renderizable en GitHub (Mermaid):
+
 ```mermaid
 flowchart LR
-  %% Extract
-  subgraph Extract
-    EX_OLD[extract_old\nCSV histórico -> stg_old]
-    EX_NEW[extract_new\nCSV calidad -> stg_new]
-    EX_API[extract_api\nAPI prestadores -> stg_api]
+  %% ======= ARQUITECTURA DE ALTO NIVEL =======
+
+  %% Fuentes (origen de datos)
+  subgraph Sources
+    CSV_OLD[CSV viejo<br/>Prestadores]
+    API_SRC[API prestadores]
+    CSV_NEW[CSV calidad del agua]
   end
 
-  %% Core ETL
-  T[transform\nclean_staging & clean_calidad]
-  M[merge_clean_sql\nconsolidación prestadores]
-  V[validate\nDQ Quickcheck]
+  %% Orquestación
+  subgraph Airflow
+    DAG[DAG etl<br/>orquestación]
+  end
 
-  %% Dimensiones y FKs
-  GEO[build_dim_geo\n(dim_geo)]
-  D1[build_dim_prestadores\n(dim_prestadores)]
-  D2[build_dim_prestacion\n(dim_prestacion_geo)]
-  D3[build_dim_calidad\n(dim_calidad_geo)]
-  FK[add_geo_fks\nNOT VALID + VALIDATE]
+  %% Procesamiento ETL (ejecutado por Airflow)
+  subgraph Processing
+    EXTRACT[extract_*<br/>stg_old / stg_api / stg_new]
+    TRANSFORM[transform<br/>normalización + imputación]
+    MERGE[merge_clean_sql<br/>consolidación prestadores]
+    VALIDATE[validate<br/>DQ Quickcheck]
+  end
 
-  %% Flujo
-  EX_OLD --> T
-  EX_NEW --> T
-  EX_API --> T
-  T --> M --> V --> GEO
-  GEO --> D1 --> FK
-  GEO --> D2 --> FK
-  GEO --> D3 --> FK
+  %% Almacenamiento (Data Warehouse en PostgreSQL)
+  subgraph Warehouse_PostgreSQL
+    STG[(stg_old / stg_api / stg_new)]
+    CLEAN[(clean_staging / clean_calidad)]
+    DIM_GEO[(dim_geo)]
+    DIM_PRES[(dim_prestadores)]
+    DIM_PREST[(dim_prestacion_geo)]
+    DIM_CAL[(dim_calidad_geo)]
+  end
+
+  %% Consumo (BI)
+  subgraph BI
+    PBI[Power BI<br/>KPIs & dashboards]
+  end
+
+  %% Flujos desde las fuentes hacia el ETL
+  CSV_OLD --> EXTRACT
+  API_SRC --> EXTRACT
+  CSV_NEW --> EXTRACT
+
+  %% Airflow orquesta cada etapa del procesamiento
+  DAG --> EXTRACT
+  DAG --> TRANSFORM
+  DAG --> MERGE
+  DAG --> VALIDATE
+
+  %% Persistencia por capas en el warehouse
+  EXTRACT --> STG
+  TRANSFORM --> CLEAN
+  MERGE --> CLEAN
+  VALIDATE --> CLEAN
+
+  %% Modelo snowflake (geo central + dimensiones colgantes)
+  CLEAN --> DIM_GEO
+  DIM_GEO --> DIM_PRES
+  DIM_GEO --> DIM_PREST
+  DIM_GEO --> DIM_CAL
+
+  %% Salida hacia BI
+  DIM_PRES --> PBI
+  DIM_PREST --> PBI
+  DIM_CAL --> PBI
 ```
+
+---
 
 ## 🗂️ Datasets Incluidos
 
@@ -168,8 +214,7 @@ flowchart LR
 * **Resultado:** `clean_staging` listo para dimensiones.
 
 **Texto corto para diapositiva (merge):**
-
-> *Se consolidaron prestadores de CSV y API usando `provider_id` (NIT o hash de nombre/dep/mun/servicio). Se normalizaron servicios, se deduplicó por `(provider_id, servicio, departamento, municipio)` y se preservó contacto desde histórico.*
+*Se consolidaron prestadores de CSV y API usando `provider_id` (NIT o hash de nombre/dep/mun/servicio). Se normalizaron servicios, se deduplicó por `(provider_id, servicio, departamento, municipio)` y se preservó contacto desde histórico.*
 
 ---
 
@@ -214,12 +259,12 @@ erDiagram
     INT  parametros_distintos
     TEXT estado_ph
     TEXT estado_cloro
-    TEXT fecha_ult_muestra
+    DATE fecha_ult_muestra
   }
 
-  DIM_GEO ||--o{ DIM_PRESTADORES    : has
-  DIM_GEO ||--o{ DIM_PRESTACION_GEO : has
-  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : has
+  DIM_GEO ||--o{ DIM_PRESTADORES    : dep,mun
+  DIM_GEO ||--o{ DIM_PRESTACION_GEO : dep,mun
+  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : dep,mun
 ```
 
 * `dim_geo(departamento, municipio)` **central**.
@@ -249,8 +294,7 @@ erDiagram
 * **Colisiones** municipio–día–parámetro (para revisión).
 
 **Texto corto para diapositiva (validación):**
-
-> *Se verifican completitud, unicidad, validez y plausibilidad. Reglas críticas detienen el DAG; avisos informan limpieza futura sin bloquear la carga.*
+*Se verifican completitud, unicidad, validez y plausibilidad. Reglas críticas detienen el DAG; avisos informan limpieza futura sin bloquear la carga.*
 
 ---
 
@@ -258,19 +302,19 @@ erDiagram
 
 ### `clean_staging` (prestadores)
 
-| Variable      | Origen         | Transformación principal                                 | Regla / Tipo                |   
-| ------------- | -------------- | -------------------------------------------------------- | --------------------------- | 
-| provider_id   | NIT / derivado | `COALESCE(nit, md5(UPPER(nombre)                         | dep                         | 
-| nombre        | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |    
-| departamento  | texto          | Normalización + validación contra catálogo               | Dominio                     |     
-| municipio     | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |     
-| servicio      | texto          | Mapeo a {ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}   | Catálogo                    |     
-| estado        | texto          | Agrupación + **imputación por moda** por (servicio, dep) | `OPERATIVA/SUSPENDIDA/OTRO` |     
-| clasificacion | texto          | Normalización + **imputación por moda** por servicio     | Completar faltantes         |     
-| direccion     | `stg_old`      | Copia directa si existe                                  | Preservación                |     
-| telefono      | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
-| email         | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
-| Dedupe        | —              | `(provider_id, servicio, departamento, municipio)`       | `ROW_NUMBER/ctid`           |
+| Variable      | Origen         | Transformación principal                                | Regla / Tipo                |
+| ------------- | -------------- | ------------------------------------------------------- | --------------------------- |
+| provider_id   | NIT / derivado | `COALESCE(nit, md5(UPPER(nombre)\|dep\|mun\|servicio))` | Llave técnica estable       |
+| nombre        | texto          | `UPPER + TRIM + quitar tildes`                          | Normalización               |
+| departamento  | texto          | Normalización + validación contra catálogo              | Dominio                     |
+| municipio     | texto          | `UPPER + TRIM + quitar tildes`                          | Normalización               |
+| servicio      | texto          | Mapeo a {ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}  | Catálogo                    |
+| estado        | texto          | Agrupación + **imputación por moda** (servicio, dpto)   | `OPERATIVA/SUSPENDIDA/OTRO` |
+| clasificacion | texto          | Normalización + **imputación por moda** por servicio    | Completar faltantes         |
+| direccion     | `stg_old`      | Copia directa si existe                                 | Preservación                |
+| telefono      | `stg_old`      | Copia + **aviso** si regex dudosa                       | Aviso (no bloquea)          |
+| email         | `stg_old`      | Copia + **aviso** si regex dudosa                       | Aviso (no bloquea)          |
+| Dedupe        | —              | `(provider_id, servicio, departamento, municipio)`      | `ROW_NUMBER/ctid`           |
 
 ### `clean_calidad` (calidad del agua)
 
@@ -280,7 +324,7 @@ erDiagram
 | parametro      | `UPPER + TRIM + quitar tildes`                                | Normalización                                  |
 | valor          | Limpieza → `double precision`                                 | `pH [0,14]`, `Cloro 0–5 mg/L` (fuera → `NULL`) |
 | unidad         | `TRIM` + **moda por parámetro**                               | Imputación                                     |
-| latitud/lon    | Cast + rángos COL; **pareo** (si falta una → ambas)           | Plausibilidad + consistencia                   |
+| latitud/lon    | Cast + rangos COL; **pareo** (si falta una → ambas)           | Plausibilidad + consistencia                   |
 | unicidad       | De-dup por `(dep, mun, parámetro, fecha, punto)`              | Evita registros repetidos                      |
 | valor (impute) | **Mediana** por `(parámetro, departamento)` → fallback global | Robustez a outliers                            |
 
@@ -315,8 +359,7 @@ erDiagram
 
 ## 🧩 Notas de Diseño
 
-* Modelo **Snowflake** (no estrella):
-  `dim_geo` central y **dimensiones colgantes** por `(departamento, municipio)`.
+* Modelo **Snowflake** (no estrella): `dim_geo` central y **dimensiones colgantes** por `(departamento, municipio)`.
 * Evitamos bloqueos en carga con FKs `NOT VALID` + comando posterior `VALIDATE CONSTRAINT`.
 * La API no trae contacto; se preserva solo desde el histórico.
 
@@ -331,3 +374,5 @@ erDiagram
 **Validación — en una frase:**
 
 > Se verifican claves no nulas, duplicados y reglas de plausibilidad/fechas/coordenadas (bloqueantes), más avisos informativos (regex contacto, % DESCONOCIDO) sin detener el DAG.
+
+---
