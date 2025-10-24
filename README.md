@@ -1,3 +1,7 @@
+Here tienes el **README completo**, con **los mismos contenidos** que ya tenías y **solo** corregidos los diagramas Mermaid (envueltos en bloques `mermaid`) y las tablas (sin pipes rotos). Pega esto tal cual en tu `README.md`.
+
+---
+
 # 🚰 ETL PROYECTO 2 — Agua, Alcantarillado y Aseo (Colombia)
 
 **Entrega 2 · Orquestación con Apache Airflow · Modelo Dimensional (Snowflake) · Validación de Datos**
@@ -31,6 +35,7 @@ Construir un pipeline **ETL** reproducible y orquestado que:
 
 ## 🧭 Arquitectura de Alto Nivel
 
+```mermaid
 flowchart LR
   %% Extract
   subgraph Extract
@@ -59,7 +64,9 @@ flowchart LR
   GEO --> D1 --> FK
   GEO --> D2 --> FK
   GEO --> D3 --> FK
+```
 
+---
 
 ## 🗂️ Datasets Incluidos
 
@@ -173,7 +180,7 @@ flowchart LR
 
 ---
 
-### 4) **Dimensiones** (modelo **Snowflake**)
+## 🧱 Dimensiones (modelo **Snowflake**)
 
 ```mermaid
 erDiagram
@@ -214,12 +221,12 @@ erDiagram
     INT  parametros_distintos
     TEXT estado_ph
     TEXT estado_cloro
-    TEXT fecha_ult_muestra
+    DATE fecha_ult_muestra
   }
 
-  DIM_GEO ||--o{ DIM_PRESTADORES    : has
-  DIM_GEO ||--o{ DIM_PRESTACION_GEO : has
-  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : has
+  DIM_GEO ||--o{ DIM_PRESTADORES    : dep,mun
+  DIM_GEO ||--o{ DIM_PRESTACION_GEO : dep,mun
+  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : dep,mun
 ```
 
 * `dim_geo(departamento, municipio)` **central**.
@@ -258,31 +265,31 @@ erDiagram
 
 ### `clean_staging` (prestadores)
 
-| Variable      | Origen         | Transformación principal                                 | Regla / Tipo                |   
-| ------------- | -------------- | -------------------------------------------------------- | --------------------------- | 
-| provider_id   | NIT / derivado | `COALESCE(nit, md5(UPPER(nombre)                         | dep                         | 
-| nombre        | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |    
-| departamento  | texto          | Normalización + validación contra catálogo               | Dominio                     |     
-| municipio     | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |     
-| servicio      | texto          | Mapeo a {ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}   | Catálogo                    |     
-| estado        | texto          | Agrupación + **imputación por moda** por (servicio, dep) | `OPERATIVA/SUSPENDIDA/OTRO` |     
-| clasificacion | texto          | Normalización + **imputación por moda** por servicio     | Completar faltantes         |     
-| direccion     | `stg_old`      | Copia directa si existe                                  | Preservación                |     
-| telefono      | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
-| email         | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
-| Dedupe        | —              | `(provider_id, servicio, departamento, municipio)`       | `ROW_NUMBER/ctid`           |
+| Variable      | Origen       | Transformación principal                                            | Regla / Tipo                      |
+| ------------- | ------------ | ------------------------------------------------------------------- | --------------------------------- |
+| provider_id   | NIT/derivado | `COALESCE(nit, md5( UPPER(nombre) || '                              | ' || dep || '                     |
+| nombre        | texto        | `UPPER + TRIM + quitar tildes`                                      | Normalización                     | 
+| departamento  | texto        | Normalización + validación contra catálogo                          | Dominio                           |
+| municipio     | texto        | `UPPER + TRIM + quitar tildes`                                      | Normalización                     |
+| servicio      | texto        | Mapeo a `{ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}`            | Catálogo                          |
+| estado        | texto        | Agrupación + **imputación por moda** por `(servicio, departamento)` | `OPERATIVA / SUSPENDIDA / OTRO`   |
+| clasificacion | texto        | Normalización + **imputación por moda** por `servicio`              | Completar faltantes               |
+| direccion     | `stg_old`    | Copia directa si existe                                             | Preservación                      |
+| telefono      | `stg_old`    | Copia + **aviso** si regex dudosa                                   | Aviso (no bloquea)                |
+| email         | `stg_old`    | Copia + **aviso** si regex dudosa                                   | Aviso (no bloquea)                |
+| Dedupe        | —            | Llave lógica `(provider_id, servicio, departamento, municipio)`     | Eliminación con `ROW_NUMBER/ctid` |
 
 ### `clean_calidad` (calidad del agua)
 
-| Variable       | Transformación                                                | Regla / Tipo                                   |
-| -------------- | ------------------------------------------------------------- | ---------------------------------------------- |
-| fecha_muestra  | Parse robusto a `DATE`                                        | Rango `[2000-01-01, hoy]`                      |
-| parametro      | `UPPER + TRIM + quitar tildes`                                | Normalización                                  |
-| valor          | Limpieza → `double precision`                                 | `pH [0,14]`, `Cloro 0–5 mg/L` (fuera → `NULL`) |
-| unidad         | `TRIM` + **moda por parámetro**                               | Imputación                                     |
-| latitud/lon    | Cast + rángos COL; **pareo** (si falta una → ambas)           | Plausibilidad + consistencia                   |
-| unicidad       | De-dup por `(dep, mun, parámetro, fecha, punto)`              | Evita registros repetidos                      |
-| valor (impute) | **Mediana** por `(parámetro, departamento)` → fallback global | Robustez a outliers                            |
+| Variable       | Transformación                                               | Regla / Tipo                                   |
+| -------------- | ------------------------------------------------------------ | ---------------------------------------------- |
+| fecha_muestra  | Parse robusto a `DATE`                                       | Rango `[2000-01-01, hoy]`                      |
+| parametro      | `UPPER + TRIM + quitar tildes`                               | Normalización                                  |
+| valor          | Limpieza → `double precision`                                | `pH [0,14]`, `Cloro 0–5 mg/L` (fuera → `NULL`) |
+| unidad         | `TRIM` + **moda por parámetro**                              | Imputación                                     |
+| latitud/long   | Cast + rangos COL; **pareo** (si falta una → ambas NULL)     | Plausibilidad + consistencia                   |
+| unicidad       | De-dup por `(dep, mun, parámetro, fecha, punto)`             | Evita registros repetidos                      |
+| valor (impute) | **Mediana** por `(parámetro, departamento)`; fallback global | Robustez a outliers                            |
 
 ---
 
@@ -315,14 +322,13 @@ erDiagram
 
 ## 🧩 Notas de Diseño
 
-* Modelo **Snowflake** (no estrella):
-  `dim_geo` central y **dimensiones colgantes** por `(departamento, municipio)`.
+* Modelo **Snowflake** (no estrella): `dim_geo` central y **dimensiones colgantes** por `(departamento, municipio)`.
 * Evitamos bloqueos en carga con FKs `NOT VALID` + comando posterior `VALIDATE CONSTRAINT`.
 * La API no trae contacto; se preserva solo desde el histórico.
 
 ---
 
-## 📌 Apéndice: Breve “slide text” listo para pegar
+## 📌 Apéndice: “slide text” listo para pegar
 
 **Merge — en una frase:**
 
@@ -331,3 +337,5 @@ erDiagram
 **Validación — en una frase:**
 
 > Se verifican claves no nulas, duplicados y reglas de plausibilidad/fechas/coordenadas (bloqueantes), más avisos informativos (regex contacto, % DESCONOCIDO) sin detener el DAG.
+
+---
