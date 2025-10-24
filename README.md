@@ -4,7 +4,7 @@
 **Stack:** Python · PostgreSQL · Docker/Compose · Apache Airflow · Power BI
 
 **Equipo:**
-Esteban Cobo · Jose David Mesa · Carlos Andrés Orozco · Sara Lucía Rojas · Breyner Posso
+Esteban Cobo · Jose David Mesa · Carlos Andrés Orozco · Sara Lucía Rojas
 
 ---
 
