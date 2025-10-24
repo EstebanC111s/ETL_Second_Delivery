@@ -1,7 +1,3 @@
-Here tienes el **README completo**, con **los mismos contenidos** que ya tenías y **solo** corregidos los diagramas Mermaid (envueltos en bloques `mermaid`) y las tablas (sin pipes rotos). Pega esto tal cual en tu `README.md`.
-
----
-
 # 🚰 ETL PROYECTO 2 — Agua, Alcantarillado y Aseo (Colombia)
 
 **Entrega 2 · Orquestación con Apache Airflow · Modelo Dimensional (Snowflake) · Validación de Datos**
