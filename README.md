@@ -30,7 +30,7 @@ Construir un pipeline **ETL** reproducible y orquestado que:
 ---
 
 ## 🧭 Arquitectura de Alto Nivel
-
+```mermaid
 flowchart LR
   %% Extract
   subgraph Extract
@@ -59,7 +59,7 @@ flowchart LR
   GEO --> D1 --> FK
   GEO --> D2 --> FK
   GEO --> D3 --> FK
-
+```
 
 ## 🗂️ Datasets Incluidos
 
