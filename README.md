@@ -258,19 +258,19 @@ erDiagram
 
 ### `clean_staging` (prestadores)
 
-| Variable      | Origen         | Transformación principal                                 | Regla / Tipo                |     |         |                       |
-| ------------- | -------------- | -------------------------------------------------------- | --------------------------- | --- | ------- | --------------------- |
-| provider_id   | NIT / derivado | `COALESCE(nit, md5(UPPER(nombre)                         | dep                         | mun | serv))` | Llave técnica estable |
-| nombre        | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |     |         |                       |
-| departamento  | texto          | Normalización + validación contra catálogo               | Dominio                     |     |         |                       |
-| municipio     | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |     |         |                       |
-| servicio      | texto          | Mapeo a {ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}   | Catálogo                    |     |         |                       |
-| estado        | texto          | Agrupación + **imputación por moda** por (servicio, dep) | `OPERATIVA/SUSPENDIDA/OTRO` |     |         |                       |
-| clasificacion | texto          | Normalización + **imputación por moda** por servicio     | Completar faltantes         |     |         |                       |
-| direccion     | `stg_old`      | Copia directa si existe                                  | Preservación                |     |         |                       |
-| telefono      | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     |         |                       |
-| email         | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     |         |                       |
-| Dedupe        | —              | `(provider_id, servicio, departamento, municipio)`       | `ROW_NUMBER/ctid`           |     |         |                       |
+| Variable      | Origen         | Transformación principal                                 | Regla / Tipo                |   
+| ------------- | -------------- | -------------------------------------------------------- | --------------------------- | 
+| provider_id   | NIT / derivado | `COALESCE(nit, md5(UPPER(nombre)                         | dep                         | 
+| nombre        | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |    
+| departamento  | texto          | Normalización + validación contra catálogo               | Dominio                     |     
+| municipio     | texto          | `UPPER + TRIM + quitar tildes`                           | Normalización               |     
+| servicio      | texto          | Mapeo a {ACUEDUCTO, ALCANTARILLADO, ASEO, DESCONOCIDO}   | Catálogo                    |     
+| estado        | texto          | Agrupación + **imputación por moda** por (servicio, dep) | `OPERATIVA/SUSPENDIDA/OTRO` |     
+| clasificacion | texto          | Normalización + **imputación por moda** por servicio     | Completar faltantes         |     
+| direccion     | `stg_old`      | Copia directa si existe                                  | Preservación                |     
+| telefono      | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
+| email         | `stg_old`      | Copia + **aviso** si regex dudosa                        | Aviso (no bloquea)          |     
+| Dedupe        | —              | `(provider_id, servicio, departamento, municipio)`       | `ROW_NUMBER/ctid`           |
 
 ### `clean_calidad` (calidad del agua)
 
