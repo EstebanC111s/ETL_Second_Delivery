@@ -255,13 +255,14 @@ erDiagram
     INT  parametros_distintos
     TEXT estado_ph
     TEXT estado_cloro
-    DATE fecha_ult_muestra
+    TEXT fecha_ult_muestra
   }
 
-  DIM_GEO ||--o{ DIM_PRESTADORES    : dep,mun
-  DIM_GEO ||--o{ DIM_PRESTACION_GEO : dep,mun
-  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : dep,mun
+  DIM_GEO ||--o{ DIM_PRESTADORES    : has
+  DIM_GEO ||--o{ DIM_PRESTACION_GEO : has
+  DIM_GEO ||--o{ DIM_CALIDAD_GEO    : has
 ```
+
 
 * `dim_geo(departamento, municipio)` **central**.
 * `dim_prestadores(departamento, municipio, provider_id, …)`
