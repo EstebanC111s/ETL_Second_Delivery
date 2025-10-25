@@ -1,0 +1,6 @@
+name: quality_checkpoint
+config_version: 1.0
+class_name: SimpleCheckpoint
+validations:
+  - batch_request: {}
+    expectation_suite_name: quality

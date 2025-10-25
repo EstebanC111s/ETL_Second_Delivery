@@ -1,0 +1,160 @@
+﻿# ===============================
+# docker-compose.yml (Airflow + DW)
+# ===============================
+
+x-airflow-env: &airflow-common-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
+  AIRFLOW__WEBSERVER__WEB_SERVER_PORT: "9070"
+  _PIP_ADDITIONAL_REQUIREMENTS: >-
+    pandas==2.1.4
+    SQLAlchemy==1.4.52
+    requests==2.31.0
+    python-dotenv>=1.0
+    great-expectations>=1.7,<2.0
+  AIRFLOW_UID: "${AIRFLOW_UID}"
+  AIRFLOW_GID: "${AIRFLOW_GID}"
+  TZ: "${TZ}"
+  PYTHONPATH: /opt/airflow
+
+x-airflow-vols: &airflow-common-volumes
+  - ./dags:/opt/airflow/dags
+  - ./src:/opt/airflow/src
+  - ./sql:/opt/airflow/sql
+  - ./ge:/opt/airflow/ge
+  - ./data:/opt/airflow/data
+  - ./logs:/opt/airflow/logs
+
+services:
+  # --------------------------
+  # Airflow metadata DB (Postgres)
+  # --------------------------
+  airflow-db:
+    image: postgres:15
+    container_name: airflow-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER} -d ${AIRFLOW_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  # --------------------------
+  # Data Warehouse (Postgres)
+  # --------------------------
+  warehouse:
+    image: postgres:15
+    container_name: warehouse
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${WH_USER}
+      POSTGRES_PASSWORD: ${WH_PASSWORD}
+      POSTGRES_DB: ${WH_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WH_USER} -d ${WH_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - warehouse_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  # --------------------------
+  # Inicialización de Airflow (migra metastore + crea admin)
+  # --------------------------
+  airflow-init:
+    image: ${AIRFLOW_IMAGE}
+    container_name: airflow-init
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-common-env
+    entrypoint: /bin/bash
+    command:
+      - -lc
+      - |
+        set -e
+        airflow db migrate
+        airflow users create --username admin --password admin --firstname a --lastname b --role Admin --email a@b.com || true
+    volumes: *airflow-common-volumes
+    restart: "no"
+
+  # --------------------------
+  # Airflow Webserver
+  # --------------------------
+  webserver:
+    image: ${AIRFLOW_IMAGE}
+    container_name: airflow-webserver
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      warehouse:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-common-env
+    command: webserver
+    ports:
+      - "9070:9070"
+    volumes: *airflow-common-volumes
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9070/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # --------------------------
+  # Airflow Scheduler
+  # --------------------------
+  scheduler:
+    image: ${AIRFLOW_IMAGE}
+    container_name: airflow-scheduler
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      warehouse:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-common-env
+    command: scheduler
+    volumes: *airflow-common-volumes
+
+  # --------------------------
+  # Airflow Triggerer
+  # --------------------------
+  triggerer:
+    image: ${AIRFLOW_IMAGE}
+    container_name: airflow-triggerer
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+      warehouse:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      <<: *airflow-common-env
+    command: triggerer
+    volumes: *airflow-common-volumes
+
+volumes:
+  airflow_db_data:
+  warehouse_data:

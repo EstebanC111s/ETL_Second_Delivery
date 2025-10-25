@@ -1,0 +1,113 @@
+# =========================
+# PYTHON / VENV / CACHE
+# =========================
+.venv/
+venv/
+ENV/
+env/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Archivos de coverage / pruebas
+.coverage
+htmlcov/
+.coverage.*
+.cache/
+
+# =========================
+# AIRFLOW / LOGS / METADATA
+# =========================
+logs/
+airflow_logs/
+airflow/logs/
+dags/__pycache__/
+dags/*.pyc
+
+# Archivos generados en runtime por Airflow
+airflow.cfg
+webserver_config.py
+airflow.db
+*.pid
+
+# =========================
+# DOCKER / COMPOSE
+# =========================
+# (Los .env locales con credenciales)
+.env
+.env.*
+*.env
+
+# Volúmenes locales montados
+tmp/
+tmp_*/
+data/tmp/
+postgres-data/
+warehouse-data/
+pgdata/
+*/pgdata/
+
+# =========================
+# DATA / OUTPUT / REPORTES
+# =========================
+data/output/
+data/output_*/
+data/**/reports/
+data/**/images/
+data/**/plots/
+data/**/charts/
+**/data_docs/
+**/great_expectations/uncommitted/
+
+# Archivos grandes temporales
+*.log
+*.csv.tmp
+*.bak
+*.zip
+*.7z
+
+# Si tienes dumps de DB locales
+dump.sql
+*.dump
+*.sql.gz
+
+# =========================
+# EDITOR / SISTEMA / OS
+# =========================
+# VS Code
+.vscode/
+.vscode/*
+.code-workspace
+
+# PyCharm
+.idea/
+
+# Windows / Explorer
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Mac (por si algún compa abre el repo en Mac)
+.DS_Store
+
+# =========================
+# NOTEBOOKS EXPORTS
+# =========================
+*.ipynb_checkpoints
+*.nbconvert.ipynb
+*.out.ipynb
+
+# =========================
+# ARCHIVOS QUE CONTIENEN SECRETOS
+# =========================
+# tokens, credenciales, llaves API, etc
+secrets_*.json
+credentials.json
+service_account.json
+gdrive_credentials.json
+gdrive_token.json
+key_*.json
+token_*.json
